@@ -1,0 +1,80 @@
+name: Test basic usage - get job_id for current job
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up mock curl
+        run: |
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/curl" << 'EOF'
+          #!/bin/bash
+          # Return a mock GitHub API response for jobs listing
+          echo '{
+            "total_count": 1,
+            "jobs": [
+              {
+                "id": 12345678,
+                "name": "test",
+                "html_url": "https://github.com/owner/repo/actions/runs/999/jobs/12345678",
+                "status": "in_progress",
+                "conclusion": null
+              }
+            ]
+          }'
+          EOF
+          chmod +x "$HOME/bin/curl"
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - id: action
+        uses: .
+        with:
+          github_token: fake-token-for-testing
+          job_name: test
+
+      - name: Assert job_id is not empty
+        env:
+          JOB_ID: ${{ steps.action.outputs.job_id }}
+        run: |
+          echo "job_id: $JOB_ID"
+          if [ -z "$JOB_ID" ]; then
+            echo "FAIL: job_id output is empty"
+            exit 1
+          fi
+          echo "PASS: job_id=$JOB_ID"
+
+      - name: Assert job_id equals expected mock value
+        env:
+          JOB_ID: ${{ steps.action.outputs.job_id }}
+        run: |
+          echo "job_id: $JOB_ID"
+          if [ "$JOB_ID" != "12345678" ]; then
+            echo "FAIL: expected job_id=12345678, got $JOB_ID"
+            exit 1
+          fi
+          echo "PASS: job_id=$JOB_ID"
+
+      - name: Assert html_url is not empty
+        env:
+          HTML_URL: ${{ steps.action.outputs.html_url }}
+        run: |
+          echo "html_url: $HTML_URL"
+          if [ -z "$HTML_URL" ]; then
+            echo "FAIL: html_url output is empty"
+            exit 1
+          fi
+          echo "PASS: html_url=$HTML_URL"
+
+      - name: Assert html_url contains github.com
+        env:
+          HTML_URL: ${{ steps.action.outputs.html_url }}
+        run: |
+          echo "html_url: $HTML_URL"
+          if [[ "$HTML_URL" != *"github.com"* ]]; then
+            echo "FAIL: html_url does not contain 'github.com'"
+            exit 1
+          fi
+          echo "PASS"
