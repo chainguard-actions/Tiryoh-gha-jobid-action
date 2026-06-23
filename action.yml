@@ -1,0 +1,69 @@
+name: "GitHub Actions job_id parser"
+description: "GitHub Action to get the current workflow run's job_id"
+inputs:
+  github_token:
+    description: "GITHUB_TOKEN to use GitHub API v3"
+    required: true
+  repository:
+    description: "target GitHub repository"
+    required: false
+  run_id:
+    description: "run_id of target workflow run"
+    required: false
+  job_name:
+    description: "job_name of tartget workflow jobs"
+    required: true
+  per_page:
+    description: "Results per page (max 100) of target workflow run"
+    required: false
+outputs:
+  job_id:
+    description: "job_id of target workflow jobs"
+    value: ${{ steps.request.outputs.job_id }}
+  html_url:
+    description: "html_url of target workflow jobs"
+    value: ${{ steps.request.outputs.html_url }}
+branding:
+  icon: "link"
+  color: "blue"
+runs:
+  using: 'composite'
+  steps:
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+    - name: Parse job_id
+      id: request
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_RUN_ID: ${{ inputs.run_id }}
+        INPUT_JOB_NAME: ${{ inputs.job_name }}
+        INPUT_PER_PAGE: ${{ inputs.per_page }}
+      shell: bash
+      run: |
+        GITHUB_BASEURL=https://api.github.com
+        GITHUB_API="/repos/${INPUT_REPOSITORY:-${GITHUB_REPOSITORY}}/actions/runs/${INPUT_RUN_ID:-${GITHUB_RUN_ID}}/jobs"
+        JOBINFO="$(curl --get -Ss -H "Authorization: Bearer ${INPUT_GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "${GITHUB_BASEURL}${GITHUB_API}?per_page=${INPUT_PER_PAGE:-30}")"
+        echo "${JOBINFO}" | grep "Resource not accessible by integration" &&  exit 1
+        job_id="$(printf '%s' "${JOBINFO}" | jq -r --arg job_name "${INPUT_JOB_NAME}" '.jobs | map(select(.name == $job_name)) | .[0].id')"
+        html_url="$(printf '%s' "${JOBINFO}" | jq -r --arg job_name "${INPUT_JOB_NAME}" '.jobs | map(select(.name == $job_name)) | .[0].html_url')"
+        echo "${job_id}" | grep "null" > /dev/null && echo "parse error, job_id is ${job_id}. job name might be wrong. See https://github.com/Tiryoh/gha-jobid-action" && exit 1
+        safe_job_id="$(printf '%s' "${job_id}" | tr -d '\n\r')"
+        safe_html_url="$(printf '%s' "${html_url}" | tr -d '\n\r')"
+        echo "job_id=${safe_job_id}" >> "$GITHUB_OUTPUT"
+        echo "html_url=${safe_html_url}" >> "$GITHUB_OUTPUT"
