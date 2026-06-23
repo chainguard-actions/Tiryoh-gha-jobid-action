@@ -1,0 +1,57 @@
+name: Test basic output with mocked API response
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install dependencies and mock curl
+        run: |
+          # Ensure jq is available
+          if ! command -v jq &>/dev/null; then
+            apt-get update -qq && apt-get install -y -qq jq
+          fi
+          # Install mock curl that returns a successful job list
+          printf '%s\n' '#!/bin/bash' \
+            'echo '"'"'{"total_count":1,"jobs":[{"id":12345678,"name":"test","html_url":"https://github.com/owner/repo/actions/runs/999/jobs/12345678","status":"in_progress","conclusion":null}]}'"'"'' \
+            > /usr/local/bin/curl
+          chmod +x /usr/local/bin/curl
+          # Verify mock curl works
+          /usr/local/bin/curl | grep -q "12345678" && echo "mock curl OK"
+
+      - name: Run action with mocked curl
+        id: action
+        uses: .
+        env:
+          GITHUB_API_URL: https://api.github.com
+        with:
+          github_token: fake-token
+          repository: owner/repo
+          run_id: "999"
+          job_name: "test"
+          per_page: 30
+
+      - name: Assert job_id output
+        env:
+          ACTUAL_JOB_ID: ${{ steps.action.outputs.job_id }}
+        run: |
+          echo "actual job_id: $ACTUAL_JOB_ID"
+          if [ "$ACTUAL_JOB_ID" != "12345678" ]; then
+            echo "FAIL: expected job_id '12345678', got '$ACTUAL_JOB_ID'"
+            exit 1
+          fi
+          echo "PASS: job_id is correct"
+
+      - name: Assert html_url output
+        env:
+          ACTUAL_HTML_URL: ${{ steps.action.outputs.html_url }}
+        run: |
+          echo "actual html_url: $ACTUAL_HTML_URL"
+          EXPECTED="https://github.com/owner/repo/actions/runs/999/jobs/12345678"
+          if [ "$ACTUAL_HTML_URL" != "$EXPECTED" ]; then
+            echo "FAIL: expected html_url '$EXPECTED', got '$ACTUAL_HTML_URL'"
+            exit 1
+          fi
+          echo "PASS: html_url is correct"
