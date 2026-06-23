@@ -1,0 +1,43 @@
+name: Test per_page parameter handling
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install fake curl to simulate valid jobs response with matching job name
+        run: |
+          mkdir -p /tmp/fake-bin
+          cat > /tmp/fake-bin/curl << 'EOF'
+          #!/bin/bash
+          # Fake curl that returns a valid jobs response with the matching job name
+          echo '{"total_count":1,"jobs":[{"id":12345678,"name":"test","html_url":"https://github.com/octocat/Hello-World/actions/runs/1/jobs/12345678"}]}'
+          EOF
+          chmod +x /tmp/fake-bin/curl
+          echo "/tmp/fake-bin" >> "$GITHUB_PATH"
+      - name: Test action succeeds with per_page parameter and matching job name
+        id: action
+        uses: .
+        with:
+          github_token: "fake-token"
+          job_name: "test"
+          repository: "octocat/Hello-World"
+          run_id: "1"
+          per_page: "100"
+      - name: Assert job_id output is set correctly
+        env:
+          JOB_ID: ${{ steps.action.outputs.job_id }}
+          HTML_URL: ${{ steps.action.outputs.html_url }}
+        run: |
+          echo "job_id: $JOB_ID"
+          echo "html_url: $HTML_URL"
+          if [ "$JOB_ID" != "12345678" ]; then
+            echo "FAIL: expected job_id '12345678', got: $JOB_ID"
+            exit 1
+          fi
+          if [ -z "$HTML_URL" ]; then
+            echo "FAIL: expected html_url to be set"
+            exit 1
+          fi
+          echo "PASS: action correctly returned job_id and html_url with per_page=100"
