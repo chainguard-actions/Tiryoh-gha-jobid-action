@@ -1,0 +1,67 @@
+name: Test with optional repository, run_id, and per_page inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install mock curl
+        run: |
+          mkdir -p /tmp/mock-bin
+          cat > /tmp/mock-bin/curl << 'EOF'
+          #!/bin/bash
+          # Mock curl that returns a fake GitHub API response
+          cat << 'RESPONSE'
+          {
+            "jobs": [
+              {
+                "id": 987654321,
+                "name": "test",
+                "html_url": "https://github.com/myorg/myrepo/actions/runs/42/jobs/987654321",
+                "status": "in_progress",
+                "conclusion": null
+              }
+            ]
+          }
+          RESPONSE
+          EOF
+          chmod +x /tmp/mock-bin/curl
+          echo "Mock curl installed"
+
+      - id: action
+        uses: .
+        env:
+          PATH: /tmp/mock-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        with:
+          github_token: fake-token
+          repository: myorg/myrepo
+          run_id: "42"
+          job_name: test
+          per_page: "50"
+
+      - name: Assert job_id and html_url are correct
+        env:
+          JOB_ID: ${{ steps.action.outputs.job_id }}
+          HTML_URL: ${{ steps.action.outputs.html_url }}
+        run: |
+          echo "job_id: $JOB_ID"
+          echo "html_url: $HTML_URL"
+          if [ -z "$JOB_ID" ]; then
+            echo "FAIL: job_id output is empty"
+            exit 1
+          fi
+          if [ "$JOB_ID" = "null" ]; then
+            echo "FAIL: job_id is null"
+            exit 1
+          fi
+          if [ "$JOB_ID" != "987654321" ]; then
+            echo "FAIL: expected job_id=987654321, got $JOB_ID"
+            exit 1
+          fi
+          if [ -z "$HTML_URL" ]; then
+            echo "FAIL: html_url output is empty"
+            exit 1
+          fi
+          echo "PASS: job_id=$JOB_ID html_url=$HTML_URL"
