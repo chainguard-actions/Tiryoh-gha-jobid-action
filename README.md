@@ -9,6 +9,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
 | v1.0.0 | [`v1.0.0`](https://github.com/chainguard-actions/Tiryoh-gha-jobid-action/tree/v1.0.0) | [`20caeb4`](https://github.com/Tiryoh/gha-jobid-action/commit/20caeb4d0b3bb798032fffd362747d4d5d58b976) |
+| v1.1.0 | [`v1.1.0`](https://github.com/chainguard-actions/Tiryoh-gha-jobid-action/tree/v1.1.0) | [`7528cee`](https://github.com/Tiryoh/gha-jobid-action/commit/7528cee9716384209bafcbd000d6689e851c5dda) |
 | v1.2.0 | [`v1.2.0`](https://github.com/chainguard-actions/Tiryoh-gha-jobid-action/tree/v1.2.0) | [`c1d1cf7`](https://github.com/Tiryoh/gha-jobid-action/commit/c1d1cf7334b70c29374ae382b91053674c8049a2) |
 | v1.3.0 | [`v1.3.0`](https://github.com/chainguard-actions/Tiryoh-gha-jobid-action/tree/v1.3.0) | [`08c36ee`](https://github.com/Tiryoh/gha-jobid-action/commit/08c36ee4cd7fe2e5e1facbaef6799c38e41532c4) |
 | v1.4.0 | [`v1.4.0`](https://github.com/chainguard-actions/Tiryoh-gha-jobid-action/tree/v1.4.0) | [`be260d8`](https://github.com/Tiryoh/gha-jobid-action/commit/be260d8673c9211a84cdcf37794ebd654ba81eef) |
