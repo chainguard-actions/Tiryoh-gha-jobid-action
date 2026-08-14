@@ -1,4 +1,4 @@
-name: Test basic usage - get job_id for current run
+name: Test explicit repository and run_id inputs
 on:
   workflow_dispatch:
 jobs:
@@ -34,7 +34,7 @@ jobs:
           JOBS=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "${API_URL}/repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=5")
+            "${API_URL}/repos/${REPO}/actions/runs/${RUN_ID}/jobs?per_page=30")
           JOB_NAME=$(echo "$JOBS" | jq -r '.jobs[0].name // empty')
           if [ -z "$JOB_NAME" ]; then
             echo "SKIP: No jobs found for run $RUN_ID"
@@ -60,6 +60,7 @@ jobs:
           repository: ${{ github.repository }}
           run_id: ${{ steps.find-run.outputs.run_id }}
           job_name: ${{ steps.find-run.outputs.job_name }}
+          per_page: 30
 
       - name: Assert job_id is non-empty and numeric
         if: steps.find-run.outputs.run_id != ''
@@ -81,12 +82,14 @@ jobs:
           fi
           echo "PASS: job_id=$JOB_ID"
 
-      - name: Assert html_url is non-empty and looks like a URL
+      - name: Assert html_url contains the repository name
         if: steps.find-run.outputs.run_id != ''
         env:
           HTML_URL: ${{ steps.action.outputs.html_url }}
+          REPO: ${{ github.repository }}
         run: |
           echo "html_url: $HTML_URL"
+          echo "repository: $REPO"
           if [ -z "$HTML_URL" ]; then
             echo "FAIL: html_url is empty"
             exit 1
@@ -97,6 +100,12 @@ jobs:
           fi
           if ! echo "$HTML_URL" | grep -qE '^https://'; then
             echo "FAIL: html_url does not start with https://: $HTML_URL"
+            exit 1
+          fi
+          # Verify the URL contains the repo name (owner/repo -> just repo part)
+          REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+          if ! echo "$HTML_URL" | grep -q "$REPO_NAME"; then
+            echo "FAIL: html_url does not contain repo name '$REPO_NAME': $HTML_URL"
             exit 1
           fi
           echo "PASS: html_url=$HTML_URL"
