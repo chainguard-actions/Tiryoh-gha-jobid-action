@@ -1,4 +1,4 @@
-name: Test basic usage - get current job id
+name: Test explicit repository and run_id inputs
 on:
   workflow_dispatch:
 jobs:
@@ -11,16 +11,21 @@ jobs:
         continue-on-error: true
         with:
           github_token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run_id: ${{ github.run_id }}
           job_name: test
+          per_page: 30
       - name: Assert action ran and produced outputs or failed gracefully
         env:
           OUTCOME: ${{ steps.action.outcome }}
           JOB_ID: ${{ steps.action.outputs.job_id }}
           HTML_URL: ${{ steps.action.outputs.html_url }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           echo "outcome: $OUTCOME"
           echo "job_id: $JOB_ID"
           echo "html_url: $HTML_URL"
+          echo "run_id: $RUN_ID"
           # Under act, GITHUB_RUN_ID may be a fake value not known to the GitHub API,
           # so the action may fail or return empty outputs. All of these are acceptable:
           # - success with valid numeric job_id and https URL: real API worked
@@ -29,7 +34,6 @@ jobs:
           if [ "$OUTCOME" = "success" ]; then
             echo "Action succeeded"
             if [ -n "$JOB_ID" ] && ! echo "$JOB_ID" | grep -q "null"; then
-              # Validate the outputs look correct
               if ! echo "$JOB_ID" | grep -qE '^[0-9]+$'; then
                 echo "FAIL: job_id is not numeric: $JOB_ID"
                 exit 1
@@ -48,6 +52,40 @@ jobs:
             fi
           elif [ "$OUTCOME" = "failure" ]; then
             echo "PASS: action failed gracefully (expected under act with fake run_id)"
+          else
+            echo "FAIL: unexpected outcome: $OUTCOME"
+            exit 1
+          fi
+      - name: Test error case - wrong job name
+        id: action-wrong-name
+        uses: .
+        continue-on-error: true
+        with:
+          github_token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run_id: ${{ github.run_id }}
+          job_name: this-job-name-does-not-exist-xyz-12345
+          per_page: 30
+      - name: Assert wrong job name causes failure or empty outputs
+        env:
+          OUTCOME: ${{ steps.action-wrong-name.outcome }}
+          JOB_ID: ${{ steps.action-wrong-name.outputs.job_id }}
+        run: |
+          echo "outcome for wrong job name: $OUTCOME"
+          echo "job_id for wrong job name: $JOB_ID"
+          # Under act with a fake run_id, the API may return an error response,
+          # causing the action to fail OR succeed with empty outputs.
+          # If the API works (real run_id), the action should fail because the job name
+          # doesn't match. In all cases, job_id must NOT be a valid numeric value.
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed for non-existent job name (or fake run_id)"
+          elif [ "$OUTCOME" = "success" ]; then
+            # If action succeeded, job_id must be empty or null (not a real job id)
+            if [ -n "$JOB_ID" ] && ! echo "$JOB_ID" | grep -q "null" && echo "$JOB_ID" | grep -qE '^[0-9]+$'; then
+              echo "FAIL: action should not return a valid numeric job_id for a non-existent job name"
+              exit 1
+            fi
+            echo "PASS: action succeeded with empty/null job_id (expected under act with fake run_id)"
           else
             echo "FAIL: unexpected outcome: $OUTCOME"
             exit 1

@@ -1,0 +1,200 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  single-job-test:
+    name: Test single job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout action
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: .github/actions/gha-jobid-action
+      - name: Run action with options
+        id: test1
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (1)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225949607"
+      - name: Verify
+        env:
+          TEST1_HTML_URL: ${{ steps.test1.outputs.html_url }}
+          TEST1_JOB_ID: ${{ steps.test1.outputs.job_id }}
+        run: |
+          check_url() {
+            if [[ "$1" == "$2" ]]; then
+              echo "html_url OK"
+            else
+              echo "html_url ERROR" >&2
+              ERROR_FLAG=1
+            fi
+          }
+          check_job_id() {
+            if [[ "$1" == "$2" ]]; then
+              echo "job_id OK"
+            else
+              echo "job_id ERROR" >&2
+              ERROR_FLAG=1
+            fi
+          }
+          ERROR_FLAG=0
+          check_url "$TEST1_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225949607/job/16897423007"
+          check_job_id "$TEST1_JOB_ID" "16897423007"
+          if [[ "$ERROR_FLAG" == 1 ]]; then
+            exit 1
+          fi
+
+  multi-jobs-test:
+    name: Test multi jobs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout action
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: .github/actions/gha-jobid-action
+      - name: Run action with options
+        id: test1
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (1)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225954167"
+      - name: Run action with options
+        id: test2
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (2)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225954167"
+      - name: Run action with options
+        id: test3
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (3)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225954167"
+      - name: Verify
+        env:
+          TEST1_HTML_URL: ${{ steps.test1.outputs.html_url }}
+          TEST1_JOB_ID: ${{ steps.test1.outputs.job_id }}
+          TEST2_HTML_URL: ${{ steps.test2.outputs.html_url }}
+          TEST2_JOB_ID: ${{ steps.test2.outputs.job_id }}
+          TEST3_HTML_URL: ${{ steps.test3.outputs.html_url }}
+          TEST3_JOB_ID: ${{ steps.test3.outputs.job_id }}
+        run: |
+          check_url() {
+            if [[ "$1" == "$2" ]]; then
+              echo "html_url OK"
+            else
+              echo "html_url ERROR" >&2
+              ERROR_FLAG=1
+            fi
+          }
+          check_job_id() {
+            if [[ "$1" == "$2" ]]; then
+              echo "job_id OK"
+            else
+              echo "job_id ERROR" >&2
+              ERROR_FLAG=1
+            fi
+          }
+          ERROR_FLAG=0
+          check_url "$TEST1_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225954167/job/16897439433"
+          check_job_id "$TEST1_JOB_ID" "16897439433"
+          check_url "$TEST2_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225954167/job/16897439692"
+          check_job_id "$TEST2_JOB_ID" "16897439692"
+          check_url "$TEST3_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225954167/job/16897439920"
+          check_job_id "$TEST3_JOB_ID" "16897439920"
+          if [[ "$ERROR_FLAG" == 1 ]]; then
+            exit 1
+          fi
+
+  multi-jobs-test-31:
+    name: Test multi jobs more than 30
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout action
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: .github/actions/gha-jobid-action
+      - name: Run action with options
+        id: test1
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (1)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225955888"
+      - name: Run action with options
+        id: test2
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (2)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225955888"
+      - name: Run action with options
+        id: test3
+        uses: ./.github/actions/gha-jobid-action
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          job_name: "build-matrix (31)"
+          repository: "Tiryoh/gha-jobid-action"
+          run_id: "6225955888"
+          per_page: 100
+      - name: Verify
+        env:
+          TEST1_HTML_URL: ${{ steps.test1.outputs.html_url }}
+          TEST1_JOB_ID: ${{ steps.test1.outputs.job_id }}
+          TEST2_HTML_URL: ${{ steps.test2.outputs.html_url }}
+          TEST2_JOB_ID: ${{ steps.test2.outputs.job_id }}
+          TEST3_HTML_URL: ${{ steps.test3.outputs.html_url }}
+          TEST3_JOB_ID: ${{ steps.test3.outputs.job_id }}
+        run: |
+          check_url() {
+            if [[ "$1" == "$2" ]]; then
+              echo "html_url OK"
+            else
+              echo "html_url ERROR" >&2
+              ERROR_FLAG=1
+            fi
+          }
+          check_job_id() {
+            if [[ "$1" == "$2" ]]; then
+              echo "job_id OK"
+            else
+              echo "job_id ERROR" >&2
+              ERROR_FLAG=1
+            fi
+          }
+          ERROR_FLAG=0
+          check_url "$TEST1_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225955888/job/16897445873"
+          check_job_id "$TEST1_JOB_ID" "16897445873"
+          check_url "$TEST2_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225955888/job/16897446063"
+          check_job_id "$TEST2_JOB_ID" "16897446063"
+          check_url "$TEST3_HTML_URL" "https://github.com/Tiryoh/gha-jobid-action/actions/runs/6225955888/job/16897453514"
+          check_job_id "$TEST3_JOB_ID" "16897453514"
+          if [[ "$ERROR_FLAG" == 1 ]]; then
+            exit 1
+          fi
