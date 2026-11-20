@@ -23,9 +23,11 @@ outputs:
   html_url:
     description: "html_url of target workflow jobs"
     value: ${{ steps.request.outputs.html_url }}
+
 branding:
   icon: "link"
   color: "blue"
+
 runs:
   using: 'composite'
   steps:
