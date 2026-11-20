@@ -23,9 +23,11 @@ outputs:
   html_url:
     description: "html_url of target workflow jobs"
     value: ${{ steps.request.outputs.html_url }}
+
 branding:
   icon: "link"
   color: "blue"
+
 runs:
   using: 'composite'
   steps:
@@ -68,3 +70,4 @@ runs:
         safe_html_url="$(printf '%s' "${HTML_URL}" | tr -d '\n\r')"
         echo "job_id=${safe_job_id}" >> "$GITHUB_OUTPUT"
         echo "html_url=${safe_html_url}" >> "$GITHUB_OUTPUT"
+
